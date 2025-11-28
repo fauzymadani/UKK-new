@@ -1,0 +1,19 @@
+  version: "3.9"
+
+  services:
+    app:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      image: laravel-app:dev
+      # When using host network the container uses the host's network stack.
+      network_mode: "host"
+      environment:
+        APP_ENV: local
+        APP_DEBUG: "true"
+        # Point Laravel to the host machine's DB (use 127.0.0.1 with host networking)
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+      volumes:
+        - .:/var/www/html:rw
+      restart: unless-stopped

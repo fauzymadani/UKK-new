@@ -1,0 +1,15 @@
+# .dockerignore
+node_modules
+vendor
+.env
+.env.*
+.git
+.gitignore
+npm-debug.log
+yarn.lock
+dist
+build
+storage
+.idea
+.vscode
+.DS_Store
