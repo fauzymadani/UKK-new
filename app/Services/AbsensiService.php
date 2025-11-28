@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\Absensi;
 use App\Repositories\Contracts\AbsensiRepositoryInterface;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
  * Class AbsensiService
@@ -217,5 +219,94 @@ class AbsensiService
     public function deleteAttendance(int $id): bool
     {
         return $this->absensiRepository->delete($id);
+    }
+
+    /**
+     * Build a filtered query based on provided filters.
+     *
+     * @param array $filters
+     * @return Builder
+     */
+    protected function buildFilteredQuery(array $filters): Builder
+    {
+        $start = $filters['tanggal_mulai'] ?? Carbon::now()->startOfMonth()->format('Y-m-d');
+        $end = $filters['tanggal_selesai'] ?? Carbon::now()->format('Y-m-d');
+
+        $query = \App\Models\Absensi::with(['siswa.user', 'siswa.kelas', 'jadwalPelajaran.mataPelajaran', 'pencatat'])
+            ->whereBetween('tanggal', [$start, $end]);
+
+        if (!empty($filters['kelas_id'])) {
+            $query->whereHas('siswa', function ($q) use ($filters) {
+                $q->where('kelas_id', $filters['kelas_id']);
+            });
+        }
+
+        if (!empty($filters['siswa_id'])) {
+            $query->where('siswa_id', $filters['siswa_id']);
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Return summary statistics for the filtered set.
+     *
+     * @param array $filters
+     * @return array
+     */
+    public function getSummary(array $filters): array
+    {
+        $all = $this->buildFilteredQuery($filters)->get();
+
+        $total = $all->count();
+        $hadir = $all->where('status', 'hadir')->count();
+        $izin = $all->where('status', 'izin')->count();
+        $sakit = $all->where('status', 'sakit')->count();
+        $alpha = $all->where('status', 'alpha')->count();
+
+        $persentase_hadir = $total > 0 ? round(($hadir / $total) * 100, 2) : 0;
+
+        return [
+            'total' => $total,
+            'hadir' => $hadir,
+            'izin' => $izin,
+            'sakit' => $sakit,
+            'alpha' => $alpha,
+            'persentase_hadir' => $persentase_hadir,
+        ];
+    }
+
+    /**
+     * Paginate filtered results.
+     *
+     * @param array $filters
+     * @param int $perPage
+     * @return LengthAwarePaginator
+     */
+    public function paginate(array $filters, int $perPage = 20): LengthAwarePaginator
+    {
+        return $this->buildFilteredQuery($filters)
+            ->orderBy('tanggal', 'desc')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Export filtered results.
+     *
+     * Returns a collection of records; adapt to your Excel/CSV exporter as needed.
+     *
+     * @param array $filters
+     * @return \Illuminate\Support\Collection
+     */
+    public function export(array $filters): \Illuminate\Support\Collection
+    {
+        // Return collection for controller/service consumer to transform/export
+        return $this->buildFilteredQuery($filters)
+            ->orderBy('tanggal', 'asc')
+            ->get();
     }
 }

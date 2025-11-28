@@ -1,4 +1,5 @@
 {{-- FILE: resources/views/livewire/admin/manage-users.blade.php --}}
+{{-- OPTIMIZED VERSION - Fixed performance issues --}}
 <div>
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-3xl font-bold text-gray-800">Kelola Users</h2>
@@ -15,7 +16,10 @@
     <div class="bg-white rounded-lg shadow p-4 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-                <input type="text" wire:model.live="search" placeholder="Cari nama atau email..."
+                {{-- OPTIMIZED: Added debounce to prevent hitting server on every keystroke --}}
+                <input type="text"
+                       wire:model.live.debounce.500ms="search"
+                       placeholder="Cari nama atau email..."
                        class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
             </div>
             <div>
@@ -47,6 +51,7 @@
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm font-medium text-gray-900">{{ $user->name }}</div>
+                        {{-- OPTIMIZED: No N+1 query here because we eager loaded siswa --}}
                         @if($user->siswa)
                             <div class="text-xs text-gray-500">NIS: {{ $user->siswa->nis }}</div>
                         @endif
@@ -71,8 +76,9 @@
                         <button wire:click="edit({{ $user->id }})" class="text-indigo-600 hover:text-indigo-900 mr-3">
                             Edit
                         </button>
+                        {{-- OPTIMIZED: Use wire:confirm instead of onclick confirm --}}
                         <button wire:click="delete({{ $user->id }})"
-                                onclick="return confirm('Yakin ingin menghapus user ini?')"
+                                wire:confirm="Yakin ingin menghapus user ini?"
                                 class="text-red-600 hover:text-red-900">
                             Hapus
                         </button>
@@ -115,14 +121,15 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
-                                <input type="text" wire:model="name"
+                                {{-- OPTIMIZED: Use wire:model.blur instead of .live for better performance --}}
+                                <input type="text" wire:model.blur="name"
                                        class="w-full border-gray-300 rounded-lg shadow-sm">
                                 @error('name') <span class="text-red-600 text-xs">{{ $message }}</span> @enderror
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                <input type="email" wire:model="email"
+                                <input type="email" wire:model.blur="email"
                                        class="w-full border-gray-300 rounded-lg shadow-sm">
                                 @error('email') <span class="text-red-600 text-xs">{{ $message }}</span> @enderror
                             </div>
@@ -131,7 +138,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                                <input type="password" wire:model="password"
+                                <input type="password" wire:model.blur="password"
                                        class="w-full border-gray-300 rounded-lg shadow-sm"
                                        placeholder="{{ $editMode ? 'Kosongkan jika tidak ingin mengubah' : '' }}">
                                 @error('password') <span class="text-red-600 text-xs">{{ $message }}</span> @enderror
@@ -139,7 +146,7 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Konfirmasi Password</label>
-                                <input type="password" wire:model="password_confirmation"
+                                <input type="password" wire:model.blur="password_confirmation"
                                        class="w-full border-gray-300 rounded-lg shadow-sm">
                             </div>
                         </div>
@@ -162,14 +169,14 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">NIS</label>
-                                        <input type="text" wire:model="nis"
+                                        <input type="text" wire:model.blur="nis"
                                                class="w-full border-gray-300 rounded-lg shadow-sm">
                                         @error('nis') <span class="text-red-600 text-xs">{{ $message }}</span> @enderror
                                     </div>
 
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">NISN</label>
-                                        <input type="text" wire:model="nisn"
+                                        <input type="text" wire:model.blur="nisn"
                                                class="w-full border-gray-300 rounded-lg shadow-sm">
                                         @error('nisn') <span
                                             class="text-red-600 text-xs">{{ $message }}</span> @enderror
@@ -182,8 +189,9 @@
                                         <select wire:model="kelas_id"
                                                 class="w-full border-gray-300 rounded-lg shadow-sm">
                                             <option value="">Pilih Kelas</option>
-                                            @foreach($kelasList as $kelas)
-                                                <option value="{{ $kelas['id'] }}">{{ $kelas['nama_kelas'] }}</option>
+                                            {{-- OPTIMIZED: Use computed property --}}
+                                            @foreach($this->kelasList as $kelas)
+                                                <option value="{{ $kelas->id }}">{{ $kelas->nama_kelas }}</option>
                                             @endforeach
                                         </select>
                                         @error('kelas_id') <span
@@ -205,13 +213,13 @@
 
                                 <div class="mt-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Alamat</label>
-                                    <textarea wire:model="alamat" rows="2"
+                                    <textarea wire:model.blur="alamat" rows="2"
                                               class="w-full border-gray-300 rounded-lg shadow-sm"></textarea>
                                 </div>
 
                                 <div class="mt-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">No. Telepon</label>
-                                    <input type="text" wire:model="no_telp"
+                                    <input type="text" wire:model.blur="no_telp"
                                            class="w-full border-gray-300 rounded-lg shadow-sm">
                                 </div>
                             </div>

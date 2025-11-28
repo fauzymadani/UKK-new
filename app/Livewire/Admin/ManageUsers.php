@@ -10,11 +10,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\Attributes\Computed;
+use Illuminate\Validation\Rule;
 
 /**
  * Class ManageUsers
  *
  * Admin component for managing all users (Admin, Guru, Siswa).
+ * OPTIMIZED VERSION - Fixed performance issues
  *
  * @package App\Livewire\Admin
  */
@@ -65,9 +68,14 @@ class ManageUsers extends Component
     public $no_telp = '';
 
     /**
-     * @var array Available classes for siswa
+     * OPTIMIZED: Computed property untuk kelas list
+     * Hanya load saat dibutuhkan (modal dibuka)
      */
-    public $kelasList = [];
+    #[Computed]
+    public function kelasList()
+    {
+        return Kelas::orderBy('nama_kelas')->get();
+    }
 
     /**
      * Validation rules.
@@ -76,6 +84,13 @@ class ManageUsers extends Component
      */
     protected function rules(): array
     {
+        // find siswa id (if editing) so unique rules ignore the correct record
+        $siswaId = null;
+        if ($this->editMode && $this->userId) {
+            $siswa = Siswa::where('user_id', $this->userId)->first();
+            $siswaId = $siswa?->id;
+        }
+
         $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $this->userId,
@@ -87,33 +102,13 @@ class ManageUsers extends Component
         }
 
         if ($this->role === 'siswa') {
-            $rules['nis'] = 'required|string|unique:siswa,nis,' . ($this->editMode ? $this->userId : 'NULL');
-            $rules['nisn'] = 'required|string|unique:siswa,nisn,' . ($this->editMode ? $this->userId : 'NULL');
+            $rules['nis'] = ['required', 'string', Rule::unique('siswa', 'nis')->ignore($siswaId)];
+            $rules['nisn'] = ['required', 'string', Rule::unique('siswa', 'nisn')->ignore($siswaId)];
             $rules['kelas_id'] = 'required|exists:kelas,id';
             $rules['jenis_kelamin'] = 'required|in:L,P';
         }
 
         return $rules;
-    }
-
-    /**
-     * Mount the component.
-     *
-     * @return void
-     */
-    public function mount(): void
-    {
-        $this->loadKelasList();
-    }
-
-    /**
-     * Load available classes.
-     *
-     * @return void
-     */
-    protected function loadKelasList(): void
-    {
-        $this->kelasList = Kelas::orderBy('nama_kelas')->get()->toArray();
     }
 
     /**
@@ -276,13 +271,16 @@ class ManageUsers extends Component
     }
 
     /**
-     * Render the component.
+     * OPTIMIZED: Render with eager loading
      *
      * @return View
      */
     public function render(): View
     {
         $query = User::query();
+
+        // OPTIMIZED: Eager load siswa relationship to prevent N+1
+        $query->with('siswa.kelas');
 
         if ($this->search) {
             $query->where(function($q) {
